@@ -1,8 +1,12 @@
 set(SOURCE_FILE_LIST
     main.cpp
+    app.cpp
+    image_loader.cpp
     resource.rc)
 
 set(HEADER_FILE_LIST
+    "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/app.hpp"
+    "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/image_loader.hpp"
     "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/resource.h")
 
 if(MSVC)

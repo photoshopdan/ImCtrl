@@ -6,7 +6,7 @@
 class App
 {
 public:
-	App(const char* title);
+	App(const char* title, int argc, char* argv[]);
 	App(const App&) = delete;
 	App& operator=(const App&) = delete;
 	App(App&&) = delete;

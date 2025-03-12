@@ -37,5 +37,8 @@ void ImageLoader::load(SDL_Renderer* renderer, const char* path)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
             "Failed to load image: %s", SDL_GetError());
+        return;
     }
+
+    SDL_GetTextureSize(m_texture, &m_width, &m_height);
 }

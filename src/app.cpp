@@ -4,7 +4,7 @@
 #include <SDL3/SDL.h>
 #include <string>
 
-App::App(const char* title)
+App::App(const char* title, int argc, char* argv[])
 	: m_title{ title }
     , m_min_frame_time{ static_cast<int>(std::round(1000.0 / 120)) }
 {
@@ -19,6 +19,11 @@ App::App(const char* title)
         SDL_VERSIONNUM_MAJOR(linked),
         SDL_VERSIONNUM_MINOR(linked),
         SDL_VERSIONNUM_MICRO(linked));
+
+    for (int i{}; i < argc; i++)
+    {
+        SDL_Log("Arg %d: %s", i + 1, argv[i]);
+    }
     
 	if (!SDL_Init(SDL_INIT_VIDEO))
 	{
@@ -40,7 +45,14 @@ App::App(const char* title)
     }
     SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
 
-    m_image_loader.load(m_renderer, "");
+    if (argc > 1)
+    {
+        m_image_loader.load(m_renderer, argv[1]);
+    }
+    else
+    {
+        m_image_loader.load(m_renderer, "");
+    }
 }
 
 App::~App()
@@ -84,7 +96,14 @@ void App::handle_events()
 void App::draw(Uint64 frame_time)
 {
     SDL_RenderClear(m_renderer);
-    SDL_RenderTexture(m_renderer, m_image_loader.get_texture(), NULL, NULL);
+    Size texture_size = m_image_loader.get_size();
+    SDL_FRect dstrect{ 0.0f, 0.0f, texture_size.w, texture_size.h };
+    SDL_RenderTexture(
+        m_renderer,
+        m_image_loader.get_texture(),
+        NULL,
+        &dstrect);
+
 #ifdef _DEBUG
     std::string frame_time_str = std::to_string(frame_time);
     SDL_RenderDebugText(m_renderer, 20, 20, frame_time_str.c_str());
@@ -107,7 +126,7 @@ void App::run()
 		frame_time = current_time - previous_time;
 		if (frame_time < m_min_frame_time)
         {
-            SDL_Delay(m_min_frame_time - frame_time);
+            SDL_Delay(m_min_frame_time - static_cast<Uint32>(frame_time));
             frame_time = SDL_GetTicks() - previous_time;
         }
 		previous_time = SDL_GetTicks();

@@ -1,5 +1,5 @@
 # ImCtrl
-An image viewer app, optimised for use with a gamepad.
+WORK IN PROGRESS. An image viewer app, optimised for use with a gamepad.
 
 ## Getting started
 If you just want to use the app, a pre-built executable will soon be provided in [Releases](https://github.com/photoshopdan/ImCtrl/releases). Alternatively you can build it yourself, as shown below.

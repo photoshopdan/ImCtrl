@@ -1,12 +1,19 @@
 #include "app.hpp"
+#include "types.hpp"
+#include "renderer.hpp"
+#include "image_loader.hpp"
 #include <stdexcept>
 #include <cmath>
 #include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
 #include <string>
+#include <format>
 
 App::App(const char* title, int argc, char* argv[])
 	: m_title{ title }
-    , m_min_frame_time{ static_cast<int>(std::round(1000.0 / 120)) }
+    , m_min_frame_time{ static_cast<int>(std::ceil(1000.0 / 120)) }
+    , m_renderer{ m_title, 1280, 720 }
+    , m_image_loader{ m_renderer }
 {
     // Log debug info.
     const int compiled = SDL_VERSION;
@@ -19,53 +26,22 @@ App::App(const char* title, int argc, char* argv[])
         SDL_VERSIONNUM_MAJOR(linked),
         SDL_VERSIONNUM_MINOR(linked),
         SDL_VERSIONNUM_MICRO(linked));
-
-    for (int i{}; i < argc; i++)
-    {
-        SDL_Log("Arg %d: %s", i + 1, argv[i]);
-    }
-    
-	if (!SDL_Init(SDL_INIT_VIDEO))
-	{
-		SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION,
-            "Failed to initialise SDL: %s", SDL_GetError());
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error",
-			"Failed to initialise app.\nSee log for details.", NULL);
-		throw std::runtime_error{ "Failed to initialise SDL." };
-	}
-
-    if(!SDL_CreateWindowAndRenderer(title, 1280, 720,
-        SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED, &m_window, &m_renderer))
-    {
-        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION,
-            "Failed to initialise window or renderer: %s", SDL_GetError());
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error",
-			"Failed to initialise app.\nSee log for details.", NULL);
-		throw std::runtime_error{ "Failed to initialise window or renderer." };
-    }
-    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+    const int img_compiled = SDL_IMAGE_VERSION;
+    const int img_linked = IMG_Version();
+    SDL_Log("Compiled SDL_image version %d.%d.%d",
+        SDL_VERSIONNUM_MAJOR(img_compiled),
+        SDL_VERSIONNUM_MINOR(img_compiled),
+        SDL_VERSIONNUM_MICRO(img_compiled));
+    SDL_Log("Linked SDL_image version %d.%d.%d",
+        SDL_VERSIONNUM_MAJOR(img_linked),
+        SDL_VERSIONNUM_MINOR(img_linked),
+        SDL_VERSIONNUM_MICRO(img_linked));
 
     if (argc > 1)
     {
-        m_image_loader.load(m_renderer, argv[1]);
+        SDL_Log("Arg 1: %s", argv[1]);
+        m_image_loader.load_directory(argv[1]);
     }
-    else
-    {
-        m_image_loader.load(m_renderer, "");
-    }
-}
-
-App::~App()
-{
-    if (m_renderer != nullptr)
-	{
-		SDL_DestroyRenderer(m_renderer);
-	}
-	if (m_window != nullptr)
-	{
-		SDL_DestroyWindow(m_window);
-	}
-	SDL_Quit();
 }
 
 void App::quit()
@@ -89,41 +65,80 @@ void App::handle_events()
             {
                 quit();
             }
+
+            if (event.key.key == SDLK_LEFT)
+            {
+                m_image_loader.backward();
+            }
+
+            if (event.key.key == SDLK_RIGHT)
+            {
+                m_image_loader.forward();
+            }
 		}
 	}
 }
 
-void App::draw(Uint64 frame_time)
+void App::draw(Uint64 update_time, Uint64 frame_time)
 {
-    SDL_RenderClear(m_renderer);
-    Size texture_size = m_image_loader.get_size();
-    SDL_FRect dstrect{ 0.0f, 0.0f, texture_size.w, texture_size.h };
-    SDL_RenderTexture(
-        m_renderer,
-        m_image_loader.get_texture(),
-        NULL,
-        &dstrect);
+    ImCtrl::Size texture_size = m_image_loader.get_current_image().get_size();
+    ImCtrl::Size window_size = m_renderer.get_window_size();
+    float window_ratio = window_size.w / window_size.h;
+    float texture_ratio = texture_size.w / texture_size.h;
+
+    SDL_FRect dstrect{};
+    if (window_ratio > texture_ratio)
+    {
+        dstrect.w = window_size.h * texture_ratio;
+        dstrect.h = static_cast<float>(window_size.h);
+        dstrect.x = (window_size.w - dstrect.w) / 2;
+        dstrect.y = 0;
+    }
+    else if (window_ratio < texture_ratio)
+    {
+        dstrect.w = static_cast<float>(window_size.w);
+        dstrect.h = window_size.w / texture_ratio;
+        dstrect.x = 0;
+        dstrect.y = (window_size.h - dstrect.h) / 2;
+    }
+    else
+    {
+        dstrect.w = static_cast<float>(window_size.w);
+        dstrect.h = static_cast<float>(window_size.h);
+        dstrect.x = 0;
+        dstrect.y = 0;
+    }
+    m_renderer.clear();
+    m_renderer.render(
+        m_image_loader.get_current_image().get_texture(),
+        dstrect);
 
 #ifdef _DEBUG
-    std::string frame_time_str = std::to_string(frame_time);
-    SDL_RenderDebugText(m_renderer, 20, 20, frame_time_str.c_str());
+    std::string fps_str = std::format("FPS: {:.1f}", 1000.0 / frame_time);
+    std::string update_time_str = std::format("Update time: {}", update_time);
+    std::string frame_time_str = std::format("Frame time: {}", frame_time);
+    m_renderer.render(fps_str.c_str(), 20, 20);
+    m_renderer.render(update_time_str.c_str(), 20, 35);
+    m_renderer.render(frame_time_str.c_str(), 20, 50);
 #endif
-    SDL_RenderPresent(m_renderer);
+    m_renderer.present();
 }
 
 void App::run()
 {
 	Uint64 previous_time{ SDL_GetTicks() };
     Uint64 frame_time{};
+    Uint64 update_time{};
 
 	while (!m_quit)
 	{
         handle_events();
-		draw(frame_time);
+		draw(update_time, frame_time);
 
         // Render as fast as possible, without exceeding the fps cap.
 		Uint64 current_time{ SDL_GetTicks() };
-		frame_time = current_time - previous_time;
+		update_time = current_time - previous_time;
+        frame_time = update_time;
 		if (frame_time < m_min_frame_time)
         {
             SDL_Delay(m_min_frame_time - static_cast<Uint32>(frame_time));

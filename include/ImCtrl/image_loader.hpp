@@ -1,33 +1,28 @@
 #ifndef IMAGE_LOADER_H
 #define IMAGE_LOADER_H
 
+#include "image.hpp"
+#include "renderer.hpp"
 #include <SDL3/SDL.h>
-
-
-struct Size
-{
-    float w{};
-    float h{};
-};
+#include <vector>
+#include <string>
 
 class ImageLoader
 {
 public:
-    ImageLoader();
-    ImageLoader(const ImageLoader&) = delete;
-	ImageLoader& operator=(const ImageLoader&) = delete;
-	ImageLoader(ImageLoader&&) = delete;
-	ImageLoader& operator=(ImageLoader&&) = delete;
-	~ImageLoader();
+    ImageLoader(const Renderer& renderer);
 
-    void load(SDL_Renderer* renderer, const char* path);
-    SDL_Texture* get_texture() const { return m_texture; }
-    Size get_size() const { return Size{ m_width, m_height }; }
+    bool load_directory(const char* path);
+    void forward();
+    void backward();
+
+    const Image& get_current_image() const { return m_images[0]; }
 
 private:
-    SDL_Texture* m_texture{};
-    float m_width{};
-    float m_height{};
+    const Renderer& m_renderer;
+    std::vector<Image> m_images{};
+    std::vector<std::string> m_paths{};
+    size_t m_current_index{};
 };
 
 #endif

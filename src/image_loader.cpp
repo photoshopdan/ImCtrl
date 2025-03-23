@@ -1,44 +1,57 @@
 #include "image_loader.hpp"
 #include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
+#include <SDL3/SDL_filesystem.h>
+#include <string>
 
-ImageLoader::ImageLoader()
+ImageLoader::ImageLoader(const Renderer& renderer)
+    : m_renderer{ renderer }
 {
-    // Log debug info.
-    const int compiled = SDL_IMAGE_VERSION;
-    const int linked = IMG_Version();
-    SDL_Log("Compiled SDL_image version %d.%d.%d",
-        SDL_VERSIONNUM_MAJOR(compiled),
-        SDL_VERSIONNUM_MINOR(compiled),
-        SDL_VERSIONNUM_MICRO(compiled));
-    SDL_Log("Linked SDL_image version %d.%d.%d",
-        SDL_VERSIONNUM_MAJOR(linked),
-        SDL_VERSIONNUM_MINOR(linked),
-        SDL_VERSIONNUM_MICRO(linked));
 }
 
-ImageLoader::~ImageLoader()
+bool ImageLoader::load_directory(const char* path)
 {
-    if (m_texture != nullptr)
+    const char* pattern{ "*.jpg" };
+    SDL_GlobFlags flags{ SDL_GLOB_CASEINSENSITIVE };
+    int count{};
+    char** file_list = SDL_GlobDirectory(path, pattern, flags, &count);
+
+    if (file_list != nullptr && count > 0)
     {
-        SDL_DestroyTexture(m_texture);
+        m_paths.clear();
+        m_images.clear();
+        m_paths.reserve(count);
+        for (int i{}; i < count; i++)
+        {
+            std::string file_path{ path };
+            file_path += "/";
+            file_path += file_list[i];
+            m_paths.push_back(file_path);
+        }
+        SDL_free(file_list);
+        m_images.emplace_back(m_renderer.get_renderer(), m_paths[0].c_str());
+        m_current_index = 0;
+        return true;
     }
+
+    return false;
 }
 
-void ImageLoader::load(SDL_Renderer* renderer, const char* path)
+void ImageLoader::forward()
 {
-    if (m_texture != nullptr)
+    if (m_current_index == m_paths.size() - 1)
     {
-        SDL_DestroyTexture(m_texture);
-    }
-
-    m_texture = IMG_LoadTexture(renderer, path);
-    if (m_texture == nullptr)
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-            "Failed to load image: %s", SDL_GetError());
         return;
     }
+    m_images.clear();
+    m_images.emplace_back(m_renderer.get_renderer(), m_paths[++m_current_index].c_str());
+}
 
-    SDL_GetTextureSize(m_texture, &m_width, &m_height);
+void ImageLoader::backward()
+{
+    if (m_current_index == 0)
+    {
+        return;
+    }
+    m_images.clear();
+    m_images.emplace_back(m_renderer.get_renderer(), m_paths[--m_current_index].c_str());
 }

@@ -2,11 +2,16 @@ set(SOURCE_FILE_LIST
     main.cpp
     app.cpp
     image_loader.cpp
+    image.cpp
+    renderer.cpp
     resource.rc)
 
 set(HEADER_FILE_LIST
     "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/app.hpp"
     "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/image_loader.hpp"
+    "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/image.hpp"
+    "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/renderer.hpp"
+    "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/types.hpp"
     "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}/resource.h")
 
 add_executable(
@@ -21,11 +26,12 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
-target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}")
-target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/extern/SDL/include")
-target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/extern/SDL_image/include")
+target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}")
+target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/extern/SDL/include")
+target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/extern/SDL_image/include")
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3_image::SDL3_image)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 if (WIN32)
     add_custom_command(
